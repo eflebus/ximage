@@ -1,14 +1,18 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from __future__ import print_function
-import numpy as np
-import os, sys, argparse, cv2, ast
-from libxmp import XMPFiles, XMPMeta, XMPError, XMPIterator, consts
-from uuid import uuid4, UUID
-from hashlib import sha1
-from datetime import datetime
-from string import Template
+import argparse
+import ast
+import os
 import pickle
+import sys
+from datetime import datetime
+from hashlib import sha1
+from string import Template
+from uuid import UUID, uuid4
+
+import cv2
+import numpy as np
+from libxmp import XMPFiles, XMPIterator, XMPMeta
 
 XMP_NS_ALIQUIS = 'http://bioretics.com/aliquis'
 
@@ -16,13 +20,13 @@ XMPMeta.register_namespace(XMP_NS_ALIQUIS, 'aliquis')
 
 __all__ = [ 'XImageMeta', 'XItem', 'XClass', 'XBlob', 'XImageParseError', 'XImageEmptyXMPError', 'ximread', 'ximwrite', 'ximage_main' ]
 
-if sys.version_info[0] == 3:
-    def raise_(exc, tb=None):
-        if exc.__traceback__ is not tb:
-            raise exc.with_traceback(tb)
-        raise exc
-else:
-    exec('def raise_(exc, tb=None):\n    raise exc, None, tb\n')
+# if sys.version_info[0] == 3:
+#     def raise_(exc, tb=None):
+#         if exc.__traceback__ is not tb:
+#             raise exc.with_traceback(tb)
+#         raise exc
+# else:
+#     exec('def raise_(exc, tb=None):\n    raise exc, None, tb\n')
 
 class XImageEmptyXMPError(Exception):
     def __init__(self, file_path):
