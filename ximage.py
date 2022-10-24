@@ -20,14 +20,6 @@ XMPMeta.register_namespace(XMP_NS_ALIQUIS, 'aliquis')
 
 __all__ = [ 'XImageMeta', 'XItem', 'XClass', 'XBlob', 'XImageParseError', 'XImageEmptyXMPError', 'ximread', 'ximwrite', 'ximage_main' ]
 
-# if sys.version_info[0] == 3:
-#     def raise_(exc, tb=None):
-#         if exc.__traceback__ is not tb:
-#             raise exc.with_traceback(tb)
-#         raise exc
-# else:
-#     exec('def raise_(exc, tb=None):\n    raise exc, None, tb\n')
-
 class XImageEmptyXMPError(Exception):
     def __init__(self, file_path):
         self.file_path = file_path
@@ -42,7 +34,7 @@ class XImageParseError(Exception):
     def __str__(self):
         return 'parsing tag "%s"' % (self.tag_name,)
 
-class XImageMeta(object):
+class XImageMeta:
     XMP_TEMPLATE = """<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Exempi + XMP Core 5.1.2">
      <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
       <rdf:Description rdf:about="" xmlns:aliquis="http://bioretics.com/aliquis">
@@ -71,7 +63,6 @@ class XImageMeta(object):
     def write(self, path):
         xmpfile = XMPFiles(file_path=path, open_forupdate=True)
         xmp = self.to_xmp()
-        #assert xmpfile.can_put_xmp(xmp)
         xmpfile.put_xmp(xmp)
         xmpfile.close_file()
 
@@ -102,7 +93,7 @@ class XImageMeta(object):
             tag = 'items'
             items = [ XItem.parse(xmp, '%s[%d]' % (tag, i)) for i in range(1, 1 + xmp.count_array_items(XMP_NS_ALIQUIS, tag)) ] if '%s[1]' % (tag,) in attribs else []
         except:
-            raise_(XImageParseError(tag), sys.exc_info()[2])
+            raise XImageParseError(tag)
 
         return XImageMeta(classes, items, acquisition, setup)
 
@@ -169,7 +160,7 @@ class XImageMeta(object):
         items_str = '<rdf:Bag>%s</rdf:Bag>' % (''.join([ '<rdf:li rdf:parseType="Resource">%s</rdf:li>' % str(item) for item in self.items ])) if len(self.items) > 0 else ''
         return XImageMeta.XMP_TEMPLATE % { 'acquisition': acquisition_str, 'setup': setup_str, 'classes': classes_str, 'items': items_str }
 
-class XItem(object):
+class XItem:
     XMP_TEMPLATE = '<aliquis:uuid>%(uuid)s</aliquis:uuid><aliquis:blobs><rdf:Bag>%(blobs)s</rdf:Bag></aliquis:blobs>'
 
     def __init__(self, blobs, uuid=None):
@@ -186,7 +177,7 @@ class XItem(object):
     def __str__(self):
         return XItem.XMP_TEMPLATE % { 'uuid': str(self.uuid), 'blobs': ''.join([ '<rdf:li rdf:parseType="Resource">%s</rdf:li>' % str(blob) for blob in self.blobs ]) }
 
-class XClass(object):
+class XClass:
     XMP_TEMPLATE = '<aliquis:name>%(name)s</aliquis:name><aliquis:color>%(color)s</aliquis:color>'
 
     def __init__(self, name, color=None, remap=None):
@@ -201,10 +192,7 @@ class XClass(object):
     @staticmethod
     def parse(xmp, prefix):
         name = xmp.get_property(XMP_NS_ALIQUIS, '%s/aliquis:name' % prefix)
-        #try:
         color = tuple(map(int, xmp.get_property(XMP_NS_ALIQUIS, '%s/aliquis:color' % prefix).split(',')))
-        #except:
-        #    color = None
 
         try:
             remap = int(xmp.get_property(XMP_NS_ALIQUIS, '%s/aliquis:remap' % prefix))
@@ -222,7 +210,7 @@ class XClass(object):
             s += '<aliquis:remap>%d</aliquis:remap>' % self.remap
         return s
 
-class XBlob(object):
+class XBlob:
     XMP_TEMPLATE = '<aliquis:values>%(values)s</aliquis:values><aliquis:points>%(points)s</aliquis:points>%(blobs)s'
 
     def __init__(self, points, values, children=None):
@@ -331,7 +319,7 @@ def ximage_import(args):
         return v
 
     def contour_level(hier, i, l=0):
-        _, _, child, parent = hier[i]
+        *_, parent = hier[i]
         if parent == -1:
             return l
         return contour_level(hier, parent, l + 1)
@@ -342,9 +330,8 @@ def ximage_import(args):
 
     def all_subblobs(blob, blobs, blobs_data, overlap_ratio_threshold):
         subblobs = []
-        blob_mask, blob_area = blobs_data[blob]
+        blob_mask, _ = blobs_data[blob]
         for b in blobs - set([ blob ]):
-            #if 1 - np.count_nonzero(blobs_data[b][0] * blob_mask != blobs_data[b][0]) / blobs_data[b][1] >= overlap_ratio_threshold:
             if np.all(blobs_data[b][0] * blob_mask == blobs_data[b][0]):
                 subblobs.append(b)
         return set(subblobs)
@@ -384,16 +371,13 @@ def ximage_import(args):
             color = color.strip()[2:]
             xc.color = tuple([ int(color[i:(i + 2)], 16) for i in range(0, 6, 2) ])
 
-    #
     default_class = 0
     overlap_ratio_threshold = 0.9
     default_value = versor(default_class, classes_num)
 
-    #
     ret = cv2.findContours(np.pad(mask != 255, 1, 'constant', constant_values=0).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     contours = ret[-2]
 
-    #
     items = [ XItem([ XBlob(contour.squeeze(1) - 1, default_value) ]) for contour in contours ]
 
     # Find items subblobs
@@ -547,7 +531,7 @@ def ximage_view(args):
 
     return 0
 
-class XValue(object):
+class XValue:
     def __init__(self, val):
         self.val = val
 
@@ -629,7 +613,6 @@ def ximage_index(args):
                 conn.commit()
 
                 # Update Acquisition
-
                 for name, val in im_meta.acquisition.items():
                     cur.execute('INSERT OR IGNORE INTO XImageParam(ximage_id, param_type, name, val) VALUES(?, 0, ?, ?)', (im_id, name, XValue(val)))
                 conn.commit()
@@ -707,7 +690,7 @@ def ximage_stats(args):
         print('No blobs found')
 
 def ximage_query(args):
-    class XEvalContext(object):
+    class XEvalContext:
         def __init__(self, cur):
             self.cur = cur
             self.cur.execute('SELECT path FROM XImage;')
@@ -724,7 +707,6 @@ def ximage_query(args):
             where_clause = ' AND '.join(self.where_conjs)
             groupby_clause = '' if len(self.having_conjs) == 0 else ' GROUP BY path HAVING %s' % (' AND '.join(self.having_conjs),)
             query = 'SELECT path FROM %s WHERE %s%s;' % (from_clause, where_clause, groupby_clause)
-            #print query, self.params
             self.cur.execute(query, self.params)
             return self._fetch_all()
 
@@ -826,7 +808,6 @@ def ximage_query(args):
                     pass # raise
             conjs.add('%s%s%s' % (comps[0], op_str, comps[1]))
 
-            #
             paths = paths.intersection(ctx.execute_query())
             ctx.reset()
             if len(paths) == 0:
